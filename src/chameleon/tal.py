@@ -21,6 +21,11 @@ from .utils import descriptorstr
 from .namespaces import XMLNS_NS
 from .parser import groups
 
+try:
+    import ast as _ast
+except ImportError:
+    from chameleon import ast24 as _ast
+
 
 try:
     next
@@ -84,17 +89,27 @@ def split_parts(arg):
 
 def parse_attributes(clause):
     attrs = {}
+    d_dict=None
     for part in split_parts(clause):
         m = ATTR_RE.match(part)
         if not m:
-            raise LanguageError(
-                "Bad syntax in attributes.", clause)
-        name, expr = groups(m, part)
-        if name in attrs:
-            raise LanguageError(
-                "Duplicate attribute name in attributes.", part)
+            d=_ast.literal_eval(part.strip())
+            if isinstance(d,dict):
+                d_dict=d
+                for k in d_dict.keys():
+                    if isinstance(d[k],str):
+                        d_dict[k]="'%s'"%d[k]
+                attrs.update(d_dict)
+            else:
+                raise LanguageError(
+                    "Bad syntax in attributes.", clause)
+        if not d_dict:
+            name, expr = groups(m, part)
+            if name in attrs:
+                raise LanguageError(
+                    "Duplicate attribute name in attributes.", part)
 
-        attrs[name] = expr
+            attrs[name] = expr
 
     return attrs
 
